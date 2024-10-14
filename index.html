@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buchstaben-Ratespiel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            text-align: center;
+        }
+        .sentence-container {
+            font-size: 24px;
+            margin-bottom: 20px;
+            letter-spacing: 10px; /* Platzhalter weiter auseinander */
+        }
+        .keyboard {
+            margin-top: 20px;
+        }
+        .key {
+            display: inline-block;
+            margin: 5px;
+            padding: 10px;
+            font-size: 20px;
+            width: 40px;
+            height: 40px;
+            border: 1px solid black;
+            cursor: pointer;
+            background-color: lightgray;
+        }
+        .key.disabled {
+            background-color: darkgray;
+            cursor: not-allowed;
+        }
+        .info {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+        .next-sentence-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            display: inline-block; /* Button ist immer sichtbar */
+        }
+        .info-per-letter {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Buchstaben-Ratespiel</h1>
+    
+    <button id="next-sentence-btn" class="next-sentence-btn" onclick="nextSentence()">Nächster Satz</button>
+
+    <div id="sentence-container" class="sentence-container">...</div>
+    
+    <div id="keyboard" class="keyboard"></div>
+    
+    <div id="info" class="info">Mittlerer Informationsgehalt: 0 bits</div>
+
+    <div id="infoPerLetter" class="info-per-letter">
+        <strong>Informationsgehalt der Buchstaben:</strong>
+    </div>
+
+    <script>
+        const sentences = [
+            "I have a spot on my chin",
+            "I know I will get a hard time at school",
+            "My father is worried about money",
+            "My mother is going to work full time",
+            "Just my luck to fall in love with an intellectual",
+            "The adult world is rubbish",
+            "I have decided to become a revolutionary"
+        ];
+
+        let currentSentenceIndex = 0;
+        let currentSentence = sentences[currentSentenceIndex].toUpperCase();
+        let displayedSentence = ".".repeat(currentSentence.length);
+        let failedAttempts = 0;
+        let currentLetterIndex = 0;
+        let perLetterFailedAttempts = 0;  // Fehlversuche pro Buchstabe
+        let letterInformationContent = [];  // Informationsgehalt pro Buchstabe
+
+        const sentenceContainer = document.getElementById('sentence-container');
+        const keyboardContainer = document.getElementById('keyboard');
+        const infoContainer = document.getElementById('info');
+        const infoPerLetterContainer = document.getElementById('infoPerLetter');
+
+        // Initialize the keyboard with letters A-Z and space
+        function initKeyboard() {
+            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ".split('');
+            keyboardContainer.innerHTML = '';
+            alphabet.forEach(letter => {
+                const key = document.createElement('div');
+                key.classList.add('key');
+                key.innerText = letter === " " ? "Leer" : letter; // Display 'Leer' for space
+                key.addEventListener('click', () => handleGuess(letter));
+                keyboardContainer.appendChild(key);
+            });
+        }
+
+        // Update the displayed sentence with the current guessed letter
+        function updateDisplayedSentence(letter) {
+            if (currentSentence[currentLetterIndex] === letter) {
+                displayedSentence = displayedSentence.substring(0, currentLetterIndex) + letter + displayedSentence.substring(currentLetterIndex + 1);
+                sentenceContainer.innerText = displayedSentence;
+                currentLetterIndex++;
+            }
+        }
+
+        // Handle letter guess
+        function handleGuess(letter) {
+            const keyElement = [...keyboardContainer.children].find(key => key.innerText === (letter === " " ? "Leer" : letter));
+            if (!keyElement || keyElement.classList.contains('disabled')) {
+                return;
+            }
+
+            if (currentSentence[currentLetterIndex] === letter) {
+                updateDisplayedSentence(letter);
+                calculateAndDisplayLetterInfo();  // Calculate and display information for the letter
+                initKeyboard(); // Reset the entire keyboard after a correct guess
+                perLetterFailedAttempts = 0;  // Reset the failed attempts for the next letter
+
+                if (currentLetterIndex === currentSentence.length) {
+                    // Satz vollständig erraten, nächster Satz kann durch den Button geladen werden
+                }
+            } else {
+                failedAttempts++;
+                perLetterFailedAttempts++;  // Count failed attempts for this letter
+                keyElement.classList.add('disabled');
+                keyElement.style.backgroundColor = "red";
+            }
+        }
+
+        // Calculate and display information content for each correctly guessed letter
+        function calculateAndDisplayLetterInfo() {
+            const pErrorLetter = perLetterFailedAttempts / (perLetterFailedAttempts + 1);  // Including correct attempt
+            const infoContentLetter = pErrorLetter > 0 ? -Math.log2(1 - pErrorLetter) : 0;
+
+            letterInformationContent.push(infoContentLetter);  // Store information content for the letter
+
+            // Display information for the current letter
+            const infoElement = document.createElement('p');
+            infoElement.innerText = `Buchstabe: ${currentSentence[currentLetterIndex - 1]} - Informationsgehalt: ${infoContentLetter.toFixed(4)} bits`;
+            infoPerLetterContainer.appendChild(infoElement);
+
+            updateAverageInformationContent();  // Update and display average information content
+        }
+
+        // Update the average information content based on individual letter information
+        function updateAverageInformationContent() {
+            const sumInfoContent = letterInformationContent.reduce((sum, content) => sum + content, 0);
+            const avgInfoContent = sumInfoContent / letterInformationContent.length;
+
+            infoContainer.innerText = `Mittlerer Informationsgehalt: ${avgInfoContent.toFixed(4)} bits`;
+        }
+
+        // Load the next sentence in the sequence
+        function nextSentence() {
+            currentSentenceIndex++;
+            if (currentSentenceIndex >= sentences.length) {
+                currentSentenceIndex = 0; // Restart if all sentences are done
+            }
+
+            currentSentence = sentences[currentSentenceIndex].toUpperCase();
+            displayedSentence = ".".repeat(currentSentence.length);
+            sentenceContainer.innerText = displayedSentence;
+
+            failedAttempts = 0;
+            currentLetterIndex = 0;
+            perLetterFailedAttempts = 0;  // Reset failed attempts for the next sentence
+            letterInformationContent = [];  // Reset the stored information contents
+
+            initKeyboard();
+
+            // Clear information per letter
+            infoPerLetterContainer.innerHTML = '<strong>Informationsgehalt der Buchstaben:</strong>';
+            infoContainer.innerText = 'Mittlerer Informationsgehalt: 0 bits';  // Reset mittlerer Informationsgehalt
+        }
+
+        // Initialize the game
+        function initGame() {
+            sentenceContainer.innerText = displayedSentence;
+            initKeyboard();
+        }
+
+        // Start the game
+        initGame();
+    </script>
+
+</body>
+</html>
